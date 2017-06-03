@@ -1,0 +1,3 @@
+[submodule "libsam"]
+	path = libsam
+	url = https://github.com/DarkAyron/libsam.git
