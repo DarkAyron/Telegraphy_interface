@@ -1,0 +1,9 @@
+Telegrapy interface
+-------------------
+
+An interface between computers an telegraphy hardware like morse key,
+telegraph sounder and radio transmitter.
+
+At the moment, the hardware is just a tinkering on a bread board.
+Schematic and PCB-layout will follow.
+
