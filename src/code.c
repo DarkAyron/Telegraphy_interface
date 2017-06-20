@@ -154,7 +154,7 @@ static const char*encodeChar(char c)
 	int n;
 	for (n = 0; n < strlen(alpha); n++) {
 		if (alpha[n] == c) {
-			if (morseMode == MORSE_CODE_INTERNATIONAL)
+			if (morseMode == MORSE_CODE_CONTINENTAL)
 				return internationalMorse[n];
 			else
 				return railRoadMorse[n];
@@ -192,7 +192,7 @@ void encoderSetText(const char*ctext)
 	remainingFarnsworthDots = 0;
 }
 
-int getNext()
+int getNext(int *bufferEmpty)
 {
 	char c;
 	
@@ -205,6 +205,8 @@ int getNext()
 	if (!c) {
 		if (!text[1])
 			return 0; /* done */
+		if (!text[2])
+			*bufferEmpty = 1;
 		actChar = encodeChar(*++text);
 		remainingFarnsworthDots = farnsworthDots;
 		if (*text == ' ')

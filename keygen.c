@@ -50,9 +50,9 @@
  __`|'_____________________________`|*8888888'___________________________
 
  ************************************************************************
- telegraph.h
+ keygen.c
  
- Created on: 30 May 2017
+ Created on: 6 Jun 2017
  
  Copyright 2017 ayron
  
@@ -72,35 +72,67 @@
 
  ***********************************************************************/
 
-#ifndef SRC_TELEGRAPH_H_
-#define SRC_TELEGRAPH_H_
+#include <unistd.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
 
-#define MORSE_CODE_CONTINENTAL	1
-#define MORSE_CODE_RAILROAD		2
+int main()
+{
+	int keyfd;
+	int rndfd;
+	int n;
+	char *cp;
+	char buffer[512];
+	unsigned char anubisKey[40];
 
-#include "ipx.h"
-#include "alchemy.h"
+	rndfd = open("/dev/random", O_RDONLY);
 
-int telegraphHandleCommand(struct ipx_header*ipxHeader, struct alchemyHeader*alcHeader, struct commandHeader cmdHeader, uint32_t remaining);
-void telegraphHandleData(struct ipx_header*ipxHeader, struct alchemyHeader*alcHeader, uint32_t remaining);
+	if (rndfd < 0) {
+		perror("/dev/random");
+		exit(1);
+	}
 
-#define CMD_TELEGRAPHY		1
-#define CMD_TELEGRAPHY_START	0
-#define CMD_TELEGRAPHY_PAUSE	1
-#define CMD_TELEGRAPHY_STOP	2
-#define CMD_TELEGRAPHY_BUFFERE	3
+	puts("We are generating a key for your device.");
+	puts("Please help generating entropy by moving your mouse!");
 
-#define CMD_SETTINGS		2
-#define CMD_SETTINGS_CODE	0
-#define CMD_SETTINGS_SPEED	1
-#define CMD_SETTINGS_SPEED_F	2
-#define CMD_SETTINGS_OUTPUT	3
-#define CMD_SETTINGS_KEYER	4
+	for (n = 0; n < 40;) {
+		n += read(rndfd, anubisKey + n, 40 - n);
+		printf("%d/40\n", n);
+	}
+	cp = buffer;
+	cp += sprintf(cp, "ROM static const unsigned char anubisKey[] = {\n");
 
-#define OUTPUT_SOUNDER		1
-#define OUTPUT_PONY		2
-#define KEYER_STRAIGHT		0
-#define KEYER_BUG		1
-#define KEYER_IAMBIC		2
+	for (n = 0; n < 40; n++) {
+		if (n == 0) {
+			cp += sprintf(cp, "\t");
+		} else 	if (n % 12) {
+			cp += sprintf(cp, ", ");
+		} else {
+			cp += sprintf(cp, ",\n\t");
+		}
+		cp += sprintf(cp, "0x%02x", anubisKey[n]);
+	}
 
-#endif /* SRC_TELEGRAPH_H_ */
+	sprintf(cp, "\n};\n");
+
+	keyfd = creat("src/anubis_key.h", 0600);
+	if (keyfd < 0) {
+		perror("Can't create key header");
+		exit(1);
+	}
+	write(keyfd, buffer, strlen(buffer));
+	close(keyfd);
+
+	keyfd = creat("anubis_key.bin", 0600);
+	if (keyfd < 0) {
+			perror("Can't create key file");
+			exit(1);
+	}
+	write(keyfd, anubisKey, 40);
+	close(keyfd);
+	close(rndfd);
+
+	return 0;
+}

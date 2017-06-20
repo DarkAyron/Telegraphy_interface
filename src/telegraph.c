@@ -79,15 +79,18 @@
 #include "enc28j60.h"
 #include "ipx.h"
 #include "alchemy.h"
+#include "mtask.h"
 
 static volatile int key;
 static char text[1518];
 static struct ipx_header replyHost;
 static int doReply;
 static unsigned int seqnum;
+static void sendBufferEmpty(int data);
 
 void dot()
 {
+	int bufferEmpty = 0;
 	TC_GetStatus(TC0, 0);
 	if (key > 0) {
 		key--;
@@ -98,7 +101,7 @@ void dot()
 	} else if (key < 0) {
 		key++;
 	} else {
-		int i = getNext();
+		int i = getNext(&bufferEmpty);
 		switch (i) {
 		case 0:
 			key = 0;
@@ -148,9 +151,13 @@ void dot()
 
 		}
 	}
+
+	if (bufferEmpty && doReply) {
+		coroutine_invoke_later(sendBufferEmpty, (int)&replyHost, "reply");
+	}
 }
 
-void telegraphHandleCommand(struct ipx_header*ipxHeader, struct alchemyHeader*alcHeader, struct commandHeader cmdHeader, uint32_t remaining)
+int telegraphHandleCommand(struct ipx_header*ipxHeader, struct alchemyHeader*alcHeader, struct commandHeader cmdHeader, uint32_t remaining)
 {
 	int i1;
 	int i2;
@@ -163,33 +170,24 @@ void telegraphHandleCommand(struct ipx_header*ipxHeader, struct alchemyHeader*al
 	case 1:
 		/* Configure mode */
 		if (remaining != 4) {
-			alcHeader->flags |= ALC_FLAG_REJ;
-			replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
-			return;
+			return 0;
 		}
 		encReadBuffer(4, (uint8_t*)&i1);
 		byteSwapl((uint32_t*)&i1);
 		if ((i1 < 0) || (i1 > 2)) {
-			alcHeader->flags |= ALC_FLAG_REJ;
-			replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
-			return;
+			return 0;
 		}
 		encoderSetMode(i1);
 		break;
 	case 2:
 		/* Configure speed */
-		/* Configure mode */
 		if (remaining != 4) {
-			alcHeader->flags |= ALC_FLAG_REJ;
-			replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
-			return;
+			return 0;
 		}
 		encReadBuffer(4, (uint8_t*)&i1);
 		byteSwapl((uint32_t*)&i1);
 		if ((i1 < 0) || (i1 > 60)) {
-			alcHeader->flags |= ALC_FLAG_REJ;
-			replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
-			return;
+			return 0;
 		}
 		encoderSetSpeed(i1, 0);
 		break;
@@ -198,7 +196,7 @@ void telegraphHandleCommand(struct ipx_header*ipxHeader, struct alchemyHeader*al
 		if (remaining != 8) {
 			alcHeader->flags |= ALC_FLAG_REJ;
 			replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
-			return;
+			return 1;
 		}
 		encReadBuffer(4, (uint8_t*)&i1);
 		encReadBuffer(4, (uint8_t*)&i2);
@@ -207,15 +205,18 @@ void telegraphHandleCommand(struct ipx_header*ipxHeader, struct alchemyHeader*al
 		if ((i1 < 0) || (i1 > 60) || (i2 < 0) || (i2 > 40)) {
 			alcHeader->flags |= ALC_FLAG_REJ;
 			replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
-			return;
+			return 1;
 		}
 
 		encoderSetSpeed(i1, i2);
 		break;
+	default:
+		return 0;
 	}
 
 	alcHeader->flags |= ALC_FLAG_ACK;
 	replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
+	return 1;
 }
 
 void telegraphHandleData(struct ipx_header*ipxHeader, struct alchemyHeader*alcHeader, uint32_t remaining)
@@ -227,5 +228,21 @@ void telegraphHandleData(struct ipx_header*ipxHeader, struct alchemyHeader*alcHe
 	encoderSetText(text);
 	alcHeader->flags |= ALC_FLAG_ACK;
 	replyPacketSimple(ipxHeader, alcHeader, 0);
+}
+
+static void sendBufferEmpty(int data)
+{
+	const struct ipx_header *ipxHeader = (const struct ipx_header*)data;
+	struct alchemyHeader alcHeader;
+	struct commandHeader cmdHeader;
+
+	cmdHeader.major = CMD_TELEGRAPHY;
+	cmdHeader.minor = CMD_TELEGRAPHY_BUFFERE;
+
+	alcHeader.flags = ALC_FLAG_COMMAND;
+
+	alcHeader.seqnum = 0;
+	replyPacketSimple(ipxHeader, &alcHeader, &cmdHeader);
+
 }
 

@@ -4,6 +4,11 @@ Telegrapy interface
 An interface between computers an telegraphy hardware like morse key,
 telegraph sounder and radio transmitter.
 
+Before you compile this, please edit src/defines.h and define your call sign!
+
+During compilation a device key will be generated. It'll be stored as
+anubis_key.bin. Be careful, this key grants access to your telegraphy interface.
+
 At the moment, the hardware is just a tinkering on a bread board.
 Schematic and PCB-layout will follow.
 

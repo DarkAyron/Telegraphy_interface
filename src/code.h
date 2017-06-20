@@ -33,7 +33,7 @@ void encoderInit(int mode, int speed, int farnsworth);
 void encoderSetMode(int mode);
 void encoderSetSpeed(int speed, int farnsworth);
 void encoderSetText(const char*ctext);
-int getNext();
+int getNext(int *bufferEmpty);
 
 
 

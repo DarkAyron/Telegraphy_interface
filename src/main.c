@@ -49,7 +49,6 @@ uint32_t tickCounter = 0;
 uint32_t SystemCoreClock = 12000000;
 volatile uint32_t doSend = 0;
 
-void test_send();
 void stall();
 void mainLoop(int unused);
 
@@ -93,15 +92,11 @@ void mainLoop(int unused)
 	alchemyInit();
 	PIOA->PIO_ISR;
 	PIOA->PIO_IER = PIO_PA2;
-	encoderInit(MORSE_CODE_INTERNATIONAL, 25, 0);
+	encoderInit(MORSE_CODE_CONTINENTAL, 25, 0);
 	encoderSetText("dl7ayr");
 	TC_Start(TC0, 0);
 	while(1) {
 		alchemyTick();
-		if (doSend) {
-			doSend = 0;
-			test_send();
-		}
 		coroutine_yield(TRIGGER_NONE);
 	}
 }
@@ -114,27 +109,6 @@ void handlePacket(int unused)
 	encWriteOp(ENC_WRITE_CTRL_REG, ENC_EIR, 0x00);
 	PIOA->PIO_ISR;
 	PIOA->PIO_IER = PIO_PA2;
-}
-
-void test_send()
-{
-	struct PACK {
-		uint8_t flags;
-		uint32_t seqnum;
-		uint8_t major;
-		uint8_t minor;
-	} alcHeader;
-
-	if (!createPacket(destNet, destNode, 0x2345, 0x2345, 0x66, 25))
-		return;
-	alcHeader.flags = 0x20;
-	alcHeader.seqnum = tickCounter;
-	byteSwapl(&alcHeader.seqnum);
-	alcHeader.major = 1;
-	alcHeader.minor = 2;
-	encWriteBuffer(sizeof(alcHeader), (uint8_t*)&alcHeader);
-	encWriteBuffer(18, "DrachiDrachiDrachi");
-	sendPacket();
 }
 
 void stall()

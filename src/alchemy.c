@@ -49,6 +49,7 @@
  *                                                                           *
  ****************************************************************************/
 
+#include "defines.h"
 #include <stdint.h>
 #include <string.h>
 #include "cpu.h"
@@ -73,12 +74,7 @@ struct cmdQueue cmdQeue[10];
 char databuf[512];
 static anubisSchedule_t keySchedule;
 
-ROM static const unsigned char anubisKey[] = {
-	0x50, 0x82, 0x1d, 0x72, 0x6c, 0x9f, 0xf3, 0xfb, 0xad, 0x0e, 0xf2, 0xbe,
-	0x04, 0x67, 0x9f, 0xf8, 0x3c, 0xa4, 0xb0, 0xc8, 0xb4, 0x87, 0x85, 0x8e,
-	0x24, 0xc1, 0x67, 0xe5, 0xe7, 0x98, 0xdc, 0xce, 0x79, 0xcc, 0xf6, 0x8e,
-	0x0e, 0xa9, 0x4f, 0x79
-};
+#include "anubis_key.h"
 
 void alchemyInit()
 {
@@ -100,7 +96,7 @@ void alchemyTick()
 	}
 }
 
-int replyPacketSimple(struct ipx_header*ipxHeader, struct alchemyHeader*alcHeader, struct commandHeader*cmdHeader)
+int replyPacketSimple(const struct ipx_header*ipxHeader, const struct alchemyHeader*alcHeader, const struct commandHeader*cmdHeader)
 {
 	uint32_t size;
 	size = sizeof(struct alchemyHeader);
@@ -116,7 +112,7 @@ int replyPacketSimple(struct ipx_header*ipxHeader, struct alchemyHeader*alcHeade
 	return 1;
 }
 
-int replyPacketEx(struct ipx_header*ipxHeader, struct alchemyHeader*alcHeader, struct commandHeader*cmdHeader, uint8_t*data, uint32_t dsize)
+int replyPacketEx(const struct ipx_header*ipxHeader, const struct alchemyHeader*alcHeader, const struct commandHeader*cmdHeader, const uint8_t*data, uint32_t dsize)
 {
 	uint32_t size;
 	size = sizeof(struct alchemyHeader);
@@ -138,14 +134,14 @@ static void handleCommand(struct ipx_header*ipxHeader, struct alchemyHeader*alcH
 	unsigned char buf[32];
 	lastMajor = cmdHeader.major;
 	lastMinor = cmdHeader.minor;
-	if (cmdHeader.major == 0)
+	if (cmdHeader.major == CMD_SYSTEM)
 	{
 		switch(cmdHeader.minor) {
-		case 0:
+		case CMD_SYSTEM_INTERROGATE:
 			alcHeader->flags |= ALC_FLAG_ACK;
 			replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
 			break;
-		case 1:
+		case CMD_SYSTEM_NONCE:
 			validity = 0;
 			alchemyTick();
 			validity = 60;
@@ -163,8 +159,11 @@ static void handleCommand(struct ipx_header*ipxHeader, struct alchemyHeader*alcH
 			alcHeader->flags |= ALC_FLAG_REJ;
 			replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
 		}
-	} else if ((cmdHeader.major == 1) && (ipxHeader->destPort == 5016)) {
-		telegraphHandleCommand(ipxHeader, alcHeader, cmdHeader, remaining);
+	} else if (ipxHeader->destPort == TELEGRAPHY_PORT) {
+		if (!telegraphHandleCommand(ipxHeader, alcHeader, cmdHeader, remaining)) {
+			alcHeader->flags |= ALC_FLAG_REJ;
+			replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
+		}
 	} else {
 		alcHeader->flags |= ALC_FLAG_REJ;
 		replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);

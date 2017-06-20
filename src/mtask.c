@@ -123,7 +123,7 @@ void mtask_init()
 	 * The lower the number, the higher the priority
 	 */
 	NVIC_SetPriority(SVCall_IRQn, 0x00);
-	NVIC_SetPriority(PendSV_IRQn, 0x0f);
+	NVIC_SetPriority(PendSV_IRQn, 0x00);
 	NVIC_SetPriority(SysTick_IRQn, 0x0e);
 	coroutine_invoke_later(coroutine_idle, 0, "Idler");
 

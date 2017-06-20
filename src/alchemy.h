@@ -89,8 +89,11 @@ extern struct cmdQueue cmdQeue[10];
 void alchemyInit();
 void alchemyTick();
 void handleAlchemyPacket(struct ipx_header*header);
-int replyPacketSimple(struct ipx_header*ipxHeader, struct alchemyHeader*alcHeader, struct commandHeader*cmdHeader);
-int replyPacketEx(struct ipx_header*ipxHeader, struct alchemyHeader*alcHeader, struct commandHeader*cmdHeader, uint8_t*data, uint32_t dsize);
+int replyPacketSimple(const struct ipx_header*ipxHeader, const struct alchemyHeader*alcHeader, const struct commandHeader*cmdHeader);
+int replyPacketEx(const struct ipx_header*ipxHeader, const struct alchemyHeader*alcHeader, const struct commandHeader*cmdHeader, const uint8_t*data, uint32_t dsize);
 
+#define CMD_SYSTEM		0
+#define CMD_SYSTEM_INTERROGATE	0
+#define CMD_SYSTEM_NONCE	1
 
 #endif /* ALCHEMY_H */

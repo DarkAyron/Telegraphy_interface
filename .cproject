@@ -92,11 +92,11 @@
 							<tool id="ilg.gnuarmeclipse.managedbuild.cross.tool.assembler.1050920848" name="Cross ARM GNU Assembler" superClass="ilg.gnuarmeclipse.managedbuild.cross.tool.assembler">
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.usepreprocessor.1729921339" name="Use preprocessor" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.usepreprocessor" useByScannerDiscovery="false" value="true" valueType="boolean"/>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.include.paths.1241648517" name="Include paths (-I)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.include.paths" valueType="includePath">
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Netzwerk_test/cmsis/ARM}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Netzwerk_test/cmsis/Microchip/sam3x/include}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Netzwerk_test/cmsis/Microchip}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Netzwerk_test/libsam/include}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Netzwerk_test/src/dragonusb}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Telegraphy_Interface/libsam/cmsis/ARM}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Telegraphy_Interface/libsam/cmsis/Microchip/sam3x/include}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Telegraphy_Interface/libsam/cmsis/Microchip}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Telegraphy_Interface/libsam/include}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Telegraphy_Interface/src/dragonusb}&quot;"/>
 								</option>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.defs.533182026" name="Defined symbols (-D)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.defs" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="DONT_USE_CMSIS_INIT"/>
@@ -105,11 +105,11 @@
 							</tool>
 							<tool id="ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler.1314450560" name="Cross ARM C Compiler" superClass="ilg.gnuarmeclipse.managedbuild.cross.tool.c.compiler">
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.c.compiler.include.paths.976044401" name="Include paths (-I)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.c.compiler.include.paths" useByScannerDiscovery="false" valueType="includePath">
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Netzwerk_test/cmsis/ARM}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Netzwerk_test/cmsis/Microchip}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Netzwerk_test/cmsis/Microchip/sam3x/include}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Netzwerk_test/libsam/include}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Netzwerk_test/src/dragonusb}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Telegraphy_Interface/libsam/cmsis/ARM}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Telegraphy_Interface/libsam/cmsis/Microchip}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Telegraphy_Interface/libsam/cmsis/Microchip/sam3x/include}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Telegraphy_Interface/libsam/include}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Telegraphy_Interface/src/dragonusb}&quot;"/>
 								</option>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.c.compiler.defs.340953296" name="Defined symbols (-D)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.c.compiler.defs" useByScannerDiscovery="false" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="DONT_USE_CMSIS_INIT"/>
@@ -162,4 +162,5 @@
 			<resource resourceType="PROJECT" workspacePath="/Netzwerk_test"/>
 		</configuration>
 	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
 </cproject>

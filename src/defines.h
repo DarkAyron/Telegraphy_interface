@@ -50,9 +50,9 @@
  __`|'_____________________________`|*8888888'___________________________
 
  ************************************************************************
- telegraph.h
+ defines.h
  
- Created on: 30 May 2017
+ Created on: 6 Jun 2017
  
  Copyright 2017 ayron
  
@@ -72,35 +72,20 @@
 
  ***********************************************************************/
 
-#ifndef SRC_TELEGRAPH_H_
-#define SRC_TELEGRAPH_H_
+#ifndef SRC_DEFINES_H_
+#define SRC_DEFINES_H_
 
-#define MORSE_CODE_CONTINENTAL	1
-#define MORSE_CODE_RAILROAD		2
+/* You can enter your name here instead of a call, if you want to use this
+ * only for wired telegraphy. If you want to go wireless, you'll need an
+ * amateur radio license. Please ask your telecomunication authority for more
+ * information.
+ */
+#define MYCALL		"DL7AYR" /* Replace this with your own call sign! */
 
-#include "ipx.h"
-#include "alchemy.h"
 
-int telegraphHandleCommand(struct ipx_header*ipxHeader, struct alchemyHeader*alcHeader, struct commandHeader cmdHeader, uint32_t remaining);
-void telegraphHandleData(struct ipx_header*ipxHeader, struct alchemyHeader*alcHeader, uint32_t remaining);
+#define TELEGRAPHY_PORT	5016
 
-#define CMD_TELEGRAPHY		1
-#define CMD_TELEGRAPHY_START	0
-#define CMD_TELEGRAPHY_PAUSE	1
-#define CMD_TELEGRAPHY_STOP	2
-#define CMD_TELEGRAPHY_BUFFERE	3
 
-#define CMD_SETTINGS		2
-#define CMD_SETTINGS_CODE	0
-#define CMD_SETTINGS_SPEED	1
-#define CMD_SETTINGS_SPEED_F	2
-#define CMD_SETTINGS_OUTPUT	3
-#define CMD_SETTINGS_KEYER	4
 
-#define OUTPUT_SOUNDER		1
-#define OUTPUT_PONY		2
-#define KEYER_STRAIGHT		0
-#define KEYER_BUG		1
-#define KEYER_IAMBIC		2
 
-#endif /* SRC_TELEGRAPH_H_ */
+#endif /* SRC_DEFINES_H_ */
