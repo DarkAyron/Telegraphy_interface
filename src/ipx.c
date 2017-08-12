@@ -56,6 +56,7 @@
 #include "enc28j60.h"
 #include "alchemy.h"
 #include "SEGGER/SEGGER_RTT.h"
+#include "memory.h"
 
 #define MAX_ROUTES 3		/* 7 routes should be enough */
 struct state {
@@ -68,14 +69,12 @@ struct state {
 	uint8_t rip_requested;
 };
 
-static IPXNode myNode;
 static IPXNet myNet;		/* for convenience this is stored in network byte order */
 static struct ipx_route routingTable[MAX_ROUTES];
-static int ctrlHandler(IPXPort port, uint8_t major, uint8_t minor, char *data,
-		       uint32_t length);
 static int createPacket2(IPXNet toNet, const IPXNode toNode, IPXPort toPort,
 		 IPXPort fromPort, uint8_t type, uint16_t length);
 static void sendPacket2(uint16_t length);
+static void sendSAP(uint16_t operation, const IPXNode destination, IPXPort port);
 static uint16_t remaining;
 static struct state pktgen_state;
 static struct state pktgen_state_back;
@@ -202,7 +201,38 @@ static void parseRIP(struct ipx_header *packet, int8_t priority)
 
 static void parseSAP(struct ipx_header *packet)
 {
+	unsigned short int operation;
+	unsigned short int stype;
 
+
+	encReadBuffer(2, (uint8_t *) & operation);
+	byteSwaps((uint16_t *) & operation);
+
+	encReadBuffer(2, (uint8_t *) & stype);
+	byteSwaps((uint16_t *) & stype);
+
+	if ((operation == IPX_SAP_OP_RESPONSE) || (operation == IPX_SAP_OP_GNS_RESPONSE)) {
+		/* if the interface isn't configured, configure it */
+		if (myNet == 0) {
+			myNet = packet->destNetwork;
+			PIOA->PIO_CODR = PIO_PA3;
+		}
+		return;
+	}
+
+	if (myNet == 0) {
+		return;
+	}
+
+	if ((operation == IPX_SAP_OP_GNS_REQUEST) || (operation == IPX_SAP_OP_REQUEST)) {
+		if ((stype == vConfiguration->sapType) || (stype == IPX_SAP_GENERAL_RQ)) {
+			if (operation == IPX_SAP_OP_GNS_REQUEST)
+				operation = IPX_SAP_OP_GNS_RESPONSE;
+			else
+				operation = IPX_SAP_OP_RESPONSE;
+			sendSAP(operation, packet->srcNode, packet->srcPort);
+		}
+	}
 }
 
 void ipxInitialize(const IPXNode node)
@@ -436,7 +466,42 @@ int haveRoute()
 	return !pktgen_state.rip_requested;
 }
 
+static void sendSAP(uint16_t operation, const IPXNode destination, IPXPort port)
+{
+	struct sap_entry response;
+	int n;
+
+	createPacket2(myNet, destination, port, IPX_SAP_PORT,
+			IPX_SAP_PTYPE, sizeof(struct sap_entry) + 2);
+
+	response.hops = 0;
+	response.network = myNet;
+	memcpy(response.node, myNode, sizeof(IPXNode));
+	memcpy(response.ser_name, vConfiguration->name, 48);
+	n = strlen(response.ser_name);
+	memset(response.ser_name + n, 0, 48 - n);
+	response.port = vConfiguration->port;
+	byteSwaps(&response.port);
+	response.ser_type = vConfiguration->sapType;
+	byteSwaps(&response.ser_type);
+	byteSwaps(&operation);
+	encWriteBuffer(2, (uint8_t *)&operation);
+	encWriteBuffer(sizeof(struct sap_entry), (unsigned char*)&response);
+	sendPacket();
+}
+
+void broadcastSAP()
+{
+	sendSAP(IPX_SAP_OP_RESPONSE, broadcastNode, IPX_SAP_PORT);
+}
+
 int isConfigured()
 {
 	return myNet != 0;
+}
+
+void configureNet(IPXNet netnum)
+{
+	myNet = netnum;
+	PIOA->PIO_CODR = PIO_PA3;
 }

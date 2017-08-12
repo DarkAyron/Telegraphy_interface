@@ -54,17 +54,18 @@
 #include <stdint.h>
 #include "cpu.h"
 
-struct PACK alchemyHeader {
+#pragma pack(push, 1)
+struct alchemyHeader {
 	uint8_t flags;
 	uint32_t seqnum;
 };
 
-struct PACK commandHeader {
+struct commandHeader {
 	uint8_t major;
 	uint8_t minor;
 };
 
-struct PACK cmdQueue {
+struct cmdQueue {
 	IPXNet network;
 	IPXNode node;
 	IPXPort srcport;
@@ -76,6 +77,7 @@ struct PACK cmdQueue {
 	uint16_t size;
 	uint8_t status;
 };
+#pragma pack(pop)
 
 #define ALC_FLAG_CON 1
 #define ALC_FLAG_REJ 2
@@ -91,9 +93,14 @@ void alchemyTick();
 void handleAlchemyPacket(struct ipx_header*header);
 int replyPacketSimple(const struct ipx_header*ipxHeader, const struct alchemyHeader*alcHeader, const struct commandHeader*cmdHeader);
 int replyPacketEx(const struct ipx_header*ipxHeader, const struct alchemyHeader*alcHeader, const struct commandHeader*cmdHeader, const uint8_t*data, uint32_t dsize);
+int alchemyAuthenticate(int key, const unsigned char*token, const struct ipx_header*ipxHeader);
 
 #define CMD_SYSTEM		0
 #define CMD_SYSTEM_INTERROGATE	0
 #define CMD_SYSTEM_NONCE	1
+#define CMD_SET_USER_KEY	2
+
+#define ALC_KEY_DEVICE		0
+#define ALC_KEY_USER		1
 
 #endif /* ALCHEMY_H */

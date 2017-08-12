@@ -120,6 +120,24 @@ void encPhyWrite(uint8_t address, uint16_t data)
 	}
 }
 
+int encPhyRead(uint8_t address)
+{
+	int result;
+
+	/* set the PHY register address */
+	encWrite(ENC_MIREGADR, address);
+	encWrite(ENC_MICMD, MICMD_MIIRD);
+	/* wait until the PHY read completes */
+	while (encRead(ENC_MISTAT) & MISTAT_BUSY) {
+		delay_us(15);
+	}
+	encWrite(ENC_MICMD, 0);
+
+	result = encRead(ENC_MIRDL);
+	result |= encRead(ENC_MIRDH) << 8;
+	return result;
+}
+
 void encInit(const uint8_t* macaddr)
 {
 	/* perform system reset */
@@ -217,12 +235,15 @@ void encPacketBegin(uint16_t len)
 /* send the packet */
 void encPacketSend()
 {
+	/* Reset the transmit logic problem. See Rev. B4 Silicon Errata point 12. */
+	encWriteOp(ENC_BIT_FIELD_SET, ENC_ECON1, ECON1_TXRST);
+	encWriteOp(ENC_BIT_FIELD_CLR, ENC_ECON1, ECON1_TXRST);
+	encWriteOp(ENC_BIT_FIELD_CLR, ENC_ECON1, ECON1_TXRTS);
+
 	/* send the contents of the transmit buffer onto the network */
 	encWriteOp(ENC_BIT_FIELD_SET, ENC_ECON1, ECON1_TXRTS);
-	/* Reset the transmit logic problem. See Rev. B4 Silicon Errata point 12. */
-	if ((encRead(ENC_EIR) & EIR_TXERIF)) {
-		encWriteOp(ENC_BIT_FIELD_CLR, ENC_ECON1, ECON1_TXRTS);
-	}
+
+
 }
 
 uint8_t encHasPacket()
@@ -231,6 +252,15 @@ uint8_t encHasPacket()
 		return (0);
 	} else {
 		return (1);
+	}
+}
+
+int encHasLink()
+{
+	if (encPhyRead(PHSTAT1) & 0x400) {
+		return 1;
+	} else {
+		return 0;
 	}
 }
 

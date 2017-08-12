@@ -58,6 +58,7 @@
 #include "alchemy.h"
 #include "anubis.h"
 #include "telegraph.h"
+#include "memory.h"
 
 #define STATUS_ROUTE_WAIT 1
 #define STATUS_ACK_WAIT 2
@@ -66,6 +67,7 @@ extern uint32_t tickCounter;
 static uint32_t validity;
 static uint32_t lastTickCounter;
 static uint32_t rndState;
+static uint32_t linkTimer;
 static unsigned char nonceKey[40];
 
 static int lastMajor;
@@ -84,6 +86,30 @@ void alchemyInit()
 
 void alchemyTick()
 {
+	if (isConfigured()) {
+		if (tickCounter % 1200 == 0) {
+			broadcastSAP();
+		}
+	} else {
+		if (encHasLink()) {
+			if (linkTimer++ > 2400) {
+				configureNet(myDefaultNet);
+				broadcastSAP();
+			} else if (linkTimer > 2200) {
+				if (tickCounter % 3 == 0) {
+					PIOA->PIO_ODSR ^= PIO_PA3;
+				}
+			} else if (linkTimer > 1800) {
+				if (tickCounter % 6 == 0) {
+					PIOA->PIO_ODSR ^= PIO_PA3;
+				}
+			}
+		} else {
+			linkTimer = 0;
+			PIOA->PIO_SODR = PIO_PA3;
+		}
+	}
+
 	rndState = rndState * 1664525 + 1013904223;
 	if (!validity) {
 		int n;
@@ -94,6 +120,27 @@ void alchemyTick()
 	} else {
 		validity--;
 	}
+}
+
+int alchemyAuthenticate(int key, const unsigned char*token, const struct ipx_header*ipxHeader)
+{
+	unsigned char buf[32];
+	unsigned char nonce[16];
+	anubisKeySetup(nonceKey, &keySchedule, 320);
+	alchemyTick(); /* consume the nonce */
+	memcpy(buf, &(ipxHeader->srcNetwork), 4);
+	memcpy(buf + 4, &(ipxHeader->srcNode), 6);
+	memcpy(buf + 10, &(ipxHeader->srcPort), 2);
+	memcpy(buf + 12, &lastTickCounter, 4);
+	anubisEncrypt(&keySchedule, buf, nonce);
+
+	if (key == ALC_KEY_DEVICE) {
+		anubisKeySetup(anubisKey, &keySchedule, 320);
+	} else {
+		anubisKeySetup(userKey, &keySchedule, 256);
+	}
+	anubisDecrypt(&keySchedule, token, buf);
+	return memcmp(buf, nonce, 16);
 }
 
 int replyPacketSimple(const struct ipx_header*ipxHeader, const struct alchemyHeader*alcHeader, const struct commandHeader*cmdHeader)
@@ -155,6 +202,25 @@ static void handleCommand(struct ipx_header*ipxHeader, struct alchemyHeader*alcH
 			alcHeader->flags |= ALC_FLAG_ACK;
 			replyPacketEx(ipxHeader, alcHeader, &cmdHeader, buf + 16, 16);
 			break;
+		case CMD_SET_USER_KEY:
+			if (remaining != 48) {
+				alcHeader->flags |= ALC_FLAG_REJ;
+				replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
+				break;
+			} else {
+				encReadBuffer(16, buf);
+				if (alchemyAuthenticate(ALC_KEY_DEVICE, buf, ipxHeader)) {
+					alcHeader->flags |= ALC_FLAG_REJ;
+					replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
+					break;
+				}
+				encReadBuffer(32, buf);
+				myMemcpy(userKey, buf, 32);
+				memory_eraseAndWrite(userKey);
+				alcHeader->flags |= ALC_FLAG_ACK;
+				replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
+				break;
+			}
 		default:
 			alcHeader->flags |= ALC_FLAG_REJ;
 			replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
@@ -186,8 +252,6 @@ void handleAlchemyPacket(struct ipx_header*header)
 		encReadBuffer(sizeof(struct commandHeader), (uint8_t*)&cmdHeader);
 		remaining -= sizeof(struct commandHeader);
 		handleCommand(header, &alcHeader, cmdHeader, remaining);
-	} else if (header->destPort == 5016) {
-		telegraphHandleData(header, &alcHeader, remaining);
 	} else {
 		/* nothing else at the moment */
 		alcHeader.flags |= ALC_FLAG_REJ;

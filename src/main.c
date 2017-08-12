@@ -28,21 +28,12 @@
 #include "enc28j60.h"
 #include "alchemy.h"
 #include "mtask.h"
+#include "memory.h"
 #include "SEGGER_SYSVIEW.h"
 #include "delay.h"
 #include "dragonusb/usb_core.h"
 #include "code.h"
 #include "telegraph.h"
-
-ROM const IPXNode myNode = {
-	0x0a, 0x00, 0x66, 0xd2, 0xac, 0x01
-};
-
-const IPXNode destNode = {
-	0x10, 0x1f, 0x74, 0x58, 0x86, 0x15
-};
-
-const IPXNet destNet = 0x0005acd2;
 
 static volatile int stalled;
 uint32_t tickCounter = 0;
@@ -74,6 +65,8 @@ int main()
 	PMC->PMC_PCK[0] = PMC_PCK_CSS_PLLA_CLK;
 	PMC->PMC_SCER = PMC_SCER_PCK0;
 	
+	memory_init();
+	memory_readUID();
 	SEGGER_SYSVIEW_Conf();
 	mtask_init();
 	USB_Init();
@@ -125,7 +118,7 @@ void PIOA_Handler()
 	uint32_t status = PIOA->PIO_ISR;
 	if (status & PIO_PA2) {
 		PIOA->PIO_IDR = PIO_PA2;
-		coroutine_invoke_urgent(handlePacket, 0, "handlePacket");
+		coroutine_invoke_later(handlePacket, 0, "handlePacket");
 		/*handlePacket(0);*/
 	}
 	SEGGER_SYSVIEW_RecordExitISR();

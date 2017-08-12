@@ -75,6 +75,7 @@
 #include <string.h>
 #include "cpu.h"
 #include "telegraph.h"
+#include "memory.h"
 #include "code.h"
 #include "enc28j60.h"
 #include "ipx.h"
@@ -161,73 +162,136 @@ int telegraphHandleCommand(struct ipx_header*ipxHeader, struct alchemyHeader*alc
 {
 	int i1;
 	int i2;
+	unsigned int oldSeqnum = seqnum;
+	unsigned char buf[48];
+	if (alcHeader->flags & ALC_FLAG_ACK) {
+		/* #ToDo: Handle ACK */
+		return 1;
+	}
 
-	switch(cmdHeader.minor) {
-	case 0:
-		TC_Start(TC0, 0);
-		doReply = 1;
-		break;
-	case 1:
-		/* Configure mode */
-		if (remaining != 4) {
-			return 0;
-		}
-		encReadBuffer(4, (uint8_t*)&i1);
-		byteSwapl((uint32_t*)&i1);
-		if ((i1 < 0) || (i1 > 2)) {
-			return 0;
-		}
-		encoderSetMode(i1);
-		break;
-	case 2:
-		/* Configure speed */
-		if (remaining != 4) {
-			return 0;
-		}
-		encReadBuffer(4, (uint8_t*)&i1);
-		byteSwapl((uint32_t*)&i1);
-		if ((i1 < 0) || (i1 > 60)) {
-			return 0;
-		}
-		encoderSetSpeed(i1, 0);
-		break;
-	case 3:
-		/* Configure speed and Farnsworth */
-		if (remaining != 8) {
-			alcHeader->flags |= ALC_FLAG_REJ;
-			replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
-			return 1;
-		}
-		encReadBuffer(4, (uint8_t*)&i1);
-		encReadBuffer(4, (uint8_t*)&i2);
-		byteSwapl((uint32_t*)&i1);
-		byteSwapl((uint32_t*)&i2);
-		if ((i1 < 0) || (i1 > 60) || (i2 < 0) || (i2 > 40)) {
-			alcHeader->flags |= ALC_FLAG_REJ;
-			replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
-			return 1;
-		}
+	seqnum = alcHeader->seqnum;
 
-		encoderSetSpeed(i1, i2);
-		break;
-	default:
-		return 0;
+	if (cmdHeader.major == 2) {
+		switch(cmdHeader.minor) {
+		case 0:
+			/* Configure mode */
+			if (remaining != 4) {
+				return 0;
+			}
+			encReadBuffer(4, (uint8_t*)&i1);
+			byteSwapl((uint32_t*)&i1);
+			if ((i1 < 0) || (i1 > 2)) {
+				return 0;
+			}
+			encoderSetMode(i1);
+			break;
+		case 1:
+			/* Configure speed */
+			if (remaining != 4) {
+				return 0;
+			}
+			encReadBuffer(4, (uint8_t*)&i1);
+			byteSwapl((uint32_t*)&i1);
+			if ((i1 < 0) || (i1 > 60)) {
+				return 0;
+			}
+			encoderSetSpeed(i1, 0);
+			break;
+		case 2:
+			/* Configure speed and Farnsworth */
+			if (remaining != 8) {
+				alcHeader->flags |= ALC_FLAG_REJ;
+				replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
+				return 1;
+			}
+			encReadBuffer(4, (uint8_t*)&i1);
+			encReadBuffer(4, (uint8_t*)&i2);
+			byteSwapl((uint32_t*)&i1);
+			byteSwapl((uint32_t*)&i2);
+			if ((i1 < 0) || (i1 > 60) || (i2 < 0) || (i2 > 40)) {
+				alcHeader->flags |= ALC_FLAG_REJ;
+				replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
+				return 1;
+			}
+
+			encoderSetSpeed(i1, i2);
+			break;
+		case 3:
+			/* Configure call */
+			if (remaining < 33 || remaining > 40) {
+				alcHeader->flags |= ALC_FLAG_REJ;
+				replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
+				return 1;
+			}
+			encReadBuffer(32, buf);
+			if (alchemyAuthenticate(ALC_KEY_DEVICE, buf, ipxHeader)) {
+				alcHeader->flags |= ALC_FLAG_REJ;
+				replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
+				return 1;
+			}
+			encReadBuffer(remaining - 32, buf);
+			buf[remaining - 32] = 0;
+			memory_prepareWrite(vConfiguration);
+			myStrcpy(vConfiguration->callsign, (char*)buf);
+			memory_eraseAndWrite(vConfiguration);
+			break;
+		case 4:
+			/* Configure device name */
+			if (remaining < 33 || remaining >= 80) {
+				alcHeader->flags |= ALC_FLAG_REJ;
+				replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
+				return 1;
+			}
+			encReadBuffer(32, buf);
+			if (alchemyAuthenticate(ALC_KEY_DEVICE, buf, ipxHeader)) {
+				alcHeader->flags |= ALC_FLAG_REJ;
+				replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
+				return 1;
+			}
+			encReadBuffer(remaining - 32, buf);
+			buf[remaining - 32] = 0;
+			memory_prepareWrite(vConfiguration);
+			myStrcpy(vConfiguration->name, (char*)buf);
+			memory_eraseAndWrite(vConfiguration);
+			break;
+		case 5:
+			/* Send call */
+			alcHeader->flags |= ALC_FLAG_ACK;
+			replyPacketEx(ipxHeader, alcHeader, &cmdHeader, (unsigned char*)vConfiguration->callsign, strlen(vConfiguration->callsign));
+			return 1;
+		default:
+			return 0;
+		}
+	} else if (cmdHeader.major == 1) {
+		switch(cmdHeader.minor) {
+		case 0:
+			memcpy(&replyHost, ipxHeader, sizeof(struct ipx_header));
+			encReadBuffer(remaining, (uint8_t*)text);
+			text[remaining] = 0;
+			encoderSetText(text);
+			break;
+		case 1:
+			if (remaining != 32) {
+				alcHeader->flags |= ALC_FLAG_REJ;
+				replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
+				return 1;
+			}
+			encReadBuffer(32, buf);
+			if (alchemyAuthenticate(ALC_KEY_USER, buf, ipxHeader)) {
+				alcHeader->flags |= ALC_FLAG_REJ;
+				replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
+				return 1;
+			}
+
+			TC_Start(TC0, 0);
+			doReply = 1;
+			break;
+		}
 	}
 
 	alcHeader->flags |= ALC_FLAG_ACK;
 	replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
 	return 1;
-}
-
-void telegraphHandleData(struct ipx_header*ipxHeader, struct alchemyHeader*alcHeader, uint32_t remaining)
-{
-	seqnum = alcHeader->seqnum;
-	memcpy(&replyHost, ipxHeader, sizeof(struct ipx_header));
-	encReadBuffer(remaining, (uint8_t*)text);
-	text[remaining] = 0;
-	encoderSetText(text);
-	alcHeader->flags |= ALC_FLAG_ACK;
-	replyPacketSimple(ipxHeader, alcHeader, 0);
 }
 
 static void sendBufferEmpty(int data)

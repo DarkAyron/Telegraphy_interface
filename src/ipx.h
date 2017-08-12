@@ -121,7 +121,9 @@ int createPacket(IPXNet toNet, const IPXNode toNode, IPXPort toPort, IPXPort fro
 int recreatePacket();
 void sendPacket();
 int haveRoute();
+void broadcastSAP();
 int isConfigured();
+void configureNet(IPXNet netnum);
 
 void byteSwaps(uint16_t * bytes);
 void byteSwapl(uint32_t * bytes);

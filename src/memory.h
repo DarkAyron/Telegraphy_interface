@@ -50,9 +50,9 @@
  __`|'_____________________________`|*8888888'___________________________
 
  ************************************************************************
- telegraph.h
+ memory.h
  
- Created on: 30 May 2017
+ Created on: 2 Jul 2017
  
  Copyright 2017 ayron
  
@@ -72,34 +72,34 @@
 
  ***********************************************************************/
 
-#ifndef SRC_TELEGRAPH_H_
-#define SRC_TELEGRAPH_H_
-
-#define MORSE_CODE_CONTINENTAL	1
-#define MORSE_CODE_RAILROAD		2
+#ifndef SRC_MEMORY_H_
+#define SRC_MEMORY_H_
 
 #include "ipx.h"
-#include "alchemy.h"
 
-int telegraphHandleCommand(struct ipx_header*ipxHeader, struct alchemyHeader*alcHeader, struct commandHeader cmdHeader, uint32_t remaining);
+#define FLASH_PAGE_SIZE		256
+#define CONFIGURATION_ADDRESS	0x3ff00
+#define USER_KEY_ADDRESS	0x3fe00
 
-#define CMD_TELEGRAPHY		1
-#define CMD_TELEGRAPHY_START	0
-#define CMD_TELEGRAPHY_PAUSE	1
-#define CMD_TELEGRAPHY_STOP	2
-#define CMD_TELEGRAPHY_BUFFERE	3
+extern IPXNode myNode;
+extern IPXNet myDefaultNet;
 
-#define CMD_SETTINGS		2
-#define CMD_SETTINGS_CODE	0
-#define CMD_SETTINGS_SPEED	1
-#define CMD_SETTINGS_SPEED_F	2
-#define CMD_SETTINGS_OUTPUT	3
-#define CMD_SETTINGS_KEYER	4
+typedef struct {
+	char callsign[8];
+	char name[IPX_SAP_SERVER_NAME_LEN];
+	int sapType;
+	int port;
+} configuration_t;
 
-#define OUTPUT_SOUNDER		1
-#define OUTPUT_PONY		2
-#define KEYER_STRAIGHT		0
-#define KEYER_BUG		1
-#define KEYER_IAMBIC		2
+extern configuration_t *vConfiguration;
+extern unsigned char *userKey;
 
-#endif /* SRC_TELEGRAPH_H_ */
+void memory_init();
+void memory_readUID();
+void memory_prepareWrite(void *data);
+void memory_eraseAndWrite(void *data);
+void memory_init();
+void myStrcpy(char *dst, const char *src);
+void myMemcpy(void *dst, const void *src, unsigned int len);
+
+#endif /* SRC_MEMORY_H_ */

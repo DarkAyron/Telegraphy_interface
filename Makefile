@@ -22,10 +22,8 @@
 # Copyright (c) 2016 Ayron
 #
 
-#QUOTE = "
 MCU = sam3x
 ARCH = armv7-m
-#TCPREFIX = $(QUOTE)C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\arm\arm-gnu-toolchain\bin\arm-none-eabi-
 TCPREFIX = arm-none-eabi-
 C++ = $(TCPREFIX)g++$(QUOTE)
 CC = $(TCPREFIX)gcc$(QUOTE)
@@ -34,9 +32,10 @@ AR = $(TCPREFIX)ar$(QUOTE)
 LD = $(TCPREFIX)ld$(QUOTE)
 OBJCOPY = $(TCPREFIX)objcopy$(QUOTE)
 OBJDUMP = $(TCPREFIX)objdump$(QUOTE)
+HOSTCC = gcc
 DFLAGS = -DDONT_USE_CMSIS_INIT
 OFLAGS = 
-LFLAGS = -T armelf_sam_eabi.x -mthumb -g
+LFLAGS = -static -T armelf_sam_eabi.x -mthumb -g
 CFLAGS = -mthumb -mlong-calls -std=gnu89 -Ilibsam/cmsis/ARM -Ilibsam/cmsis/Microchip -Ilibsam -Isrc -Isrc/SEGGER -g
 WFLAGS = -Wall -Wno-comment -Werror=implicit-int -Werror=implicit-function-declaration -Wno-unused-variable -Wno-unused-function -Wno-unused-but-set-variable
 CFLAGS += $(OFLAGS) $(DFLAGS) $(WFLAGS)
@@ -50,6 +49,7 @@ OBJC = src/init.o \
 	src/alchemy.o \
 	src/anubis.o \
 	src/mtask.o \
+	src/memory.o \
 	src/code.o \
 	src/telegraph.o \
 	src/dragonusb/usb_core.o \
@@ -81,6 +81,8 @@ all: $(BIN) $(DIS)
 clean:
 	rm -f $(OBJC) $(OBJS) $(EXEC) $(BIN) $(DIS)
 
+distclean:
+	rm -f $(OBJC) $(OBJS) $(EXEC) $(BIN) $(DIS) src/anubis_key.h anubis_key.bin anubis_key.hex keygen
 dis: $(DIS)
 
 $(DIS): $(EXEC)
@@ -94,6 +96,15 @@ $(BIN): $(EXEC)
 $(EXEC): $(OBJS) $(OBJC)
 	@echo [LD] $@
 	@$(CC) -nostartfiles -march=$(ARCH) $(LFLAGS) -o $(EXEC) $(OBJS) $(OBJC)
+
+keygen: keygen.c
+	@echo [HOSTCC] keygen
+	@$(HOSTCC) -o keygen keygen.c
+
+src/alchemy.o: src/anubis_key.h
+
+src/anubis_key.h: keygen
+	./keygen
 
 %.o: %.s
 	@echo [AS] $@

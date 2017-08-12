@@ -4,3 +4,4 @@
 *.elf
 *.dis
 src/anubis_key.h
+anubis_key.hex

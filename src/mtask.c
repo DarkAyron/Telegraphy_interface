@@ -54,6 +54,7 @@ static struct {
 
 static volatile uint32_t currentTick;
 static volatile enum triggers currentTrigger;
+static volatile int newInvoke;
 
 #define SYS_SP 0x20010000 /* Stack pointer */
 #define STACK_SIZE 0x400
@@ -92,6 +93,10 @@ static void coroutine_idle(int unused)
 				currentTrigger = TRIGGER_NONE;
 				coroutine_yield(TRIGGER_NONE);
 			}
+			if (newInvoke) {
+				newInvoke = 0;
+				coroutine_yield(TRIGGER_NONE);
+			}
 			/*asm volatile ("wfi"); */
 		}
 		
@@ -123,7 +128,7 @@ void mtask_init()
 	 * The lower the number, the higher the priority
 	 */
 	NVIC_SetPriority(SVCall_IRQn, 0x00);
-	NVIC_SetPriority(PendSV_IRQn, 0x00);
+	NVIC_SetPriority(PendSV_IRQn, 0x0f);
 	NVIC_SetPriority(SysTick_IRQn, 0x0e);
 	coroutine_invoke_later(coroutine_idle, 0, "Idler");
 
@@ -147,6 +152,7 @@ void PendSV_Handler()
 {
 	register void *nextsp;
 	register void *mySP;
+	__disable_irq();
 	asm("push {r4 - r11}");
 	/* save the magic link */
 	asm("mov r10, lr");
@@ -166,11 +172,13 @@ void PendSV_Handler()
 
 	/* restore the rest and trigger rti */
 	asm("pop {r4 - r11}");
+	__enable_irq();
 	asm("bx lr");
 }
 
 static void coroutine_switchToNext()
 {
+	__disable_irq();
 	/* find the next coroutine */
 	coroutineNum.next = findNextCoroutine();
 	if (coroutineNum.next == 15) {
@@ -185,6 +193,7 @@ static void coroutine_switchToNext()
 		SEGGER_SYSVIEW_OnIdle();
 
 	SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
+	__enable_irq();
 }
 
 /* we don't need to save anything here,
@@ -262,7 +271,7 @@ enum triggers coroutine_yield(enum triggers trigger)
 					       trigger);
 	coroutine_switchToNext();
 	return coroutines[coroutineNum.cur].trigger;
-	/*asm volatile ("wfi"); */
+	asm volatile ("wfi");
 }
 
 /* set up a new coroutine-slot and invoke it eventually in the current or next tick */
@@ -277,6 +286,7 @@ int coroutine_invoke_later(void (*func) (int), int param, const char *name)
 		return -1;
 
 	coroutine_start(func, param, n, name);
+	newInvoke = 1;
 	return n;
 }
 

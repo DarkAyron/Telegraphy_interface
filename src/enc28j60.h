@@ -276,6 +276,7 @@ extern void encInit(const uint8_t* macaddr);
 extern void encPacketBegin(uint16_t len);
 extern void encPacketSend();
 extern uint8_t encHasPacket();
+extern int encHasLink();
 extern uint16_t encPacketReceive(uint8_t* packet);
 extern void encPacketReceiveFinish();
 extern uint8_t encGetrev(void);

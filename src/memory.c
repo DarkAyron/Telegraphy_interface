@@ -50,9 +50,9 @@
  __`|'_____________________________`|*8888888'___________________________
 
  ************************************************************************
- telegraph.h
+ memory.c
  
- Created on: 30 May 2017
+ Created on: 2 Jul 2017
  
  Copyright 2017 ayron
  
@@ -72,34 +72,104 @@
 
  ***********************************************************************/
 
-#ifndef SRC_TELEGRAPH_H_
-#define SRC_TELEGRAPH_H_
-
-#define MORSE_CODE_CONTINENTAL	1
-#define MORSE_CODE_RAILROAD		2
-
+#include "cpu.h"
 #include "ipx.h"
-#include "alchemy.h"
+#include "memory.h"
+#include <string.h>
 
-int telegraphHandleCommand(struct ipx_header*ipxHeader, struct alchemyHeader*alcHeader, struct commandHeader cmdHeader, uint32_t remaining);
+IPXNode myNode;
+IPXNet myDefaultNet;
+configuration_t *vConfiguration;
+unsigned char*userKey;
 
-#define CMD_TELEGRAPHY		1
-#define CMD_TELEGRAPHY_START	0
-#define CMD_TELEGRAPHY_PAUSE	1
-#define CMD_TELEGRAPHY_STOP	2
-#define CMD_TELEGRAPHY_BUFFERE	3
+__attribute__((section(".ramfunc")))
+__attribute__((noinline))
+void memory_readUID()
+{
+	char c[12];
+	__disable_irq();
+	efc_perform_read_sequence(EFC0, EFC_FCMD_STUI, EFC_FCMD_SPUI, (uint32_t*)c, 3);
 
-#define CMD_SETTINGS		2
-#define CMD_SETTINGS_CODE	0
-#define CMD_SETTINGS_SPEED	1
-#define CMD_SETTINGS_SPEED_F	2
-#define CMD_SETTINGS_OUTPUT	3
-#define CMD_SETTINGS_KEYER	4
+	myNode[0] = 0x1a;
+	myNode[1] = c[3];
+	myNode[2] = c[4];
+	myNode[3] = c[5];
+	myNode[4] = c[6];
+	myNode[5] = c[7];
 
-#define OUTPUT_SOUNDER		1
-#define OUTPUT_PONY		2
-#define KEYER_STRAIGHT		0
-#define KEYER_BUG		1
-#define KEYER_IAMBIC		2
+	myDefaultNet = *((IPXNet*)(c + 8));
 
-#endif /* SRC_TELEGRAPH_H_ */
+	efc_perform_command(EFC0, EFC_FCMD_SPUI, 0);
+	__enable_irq();
+}
+
+void memory_prepareWrite(void *data)
+{
+	uint32_t *d = (uint32_t*)0;
+	uint32_t *s = (uint32_t*)data;
+	int n;
+
+	for (n = 0; n < FLASH_PAGE_SIZE; n += 4) {
+		d[n] = s[n];
+	}
+}
+
+void memory_eraseAndWrite(void *data)
+{
+	int pagenum;
+
+	pagenum = ((uint32_t)data & 0xfff00) / FLASH_PAGE_SIZE;
+	efc_perform_command(EFC0, EFC_FCMD_EWP, pagenum);
+}
+
+static void loadDefaultValues()
+{
+	myStrcpy(vConfiguration->callsign,"NONE");
+	myStrcpy(vConfiguration->name, "Telegraphy");
+	vConfiguration->sapType = 0x4357;
+	vConfiguration->port = 5016;
+	memory_eraseAndWrite(vConfiguration);
+}
+
+void memory_init()
+{
+	vConfiguration = (configuration_t*)CONFIGURATION_ADDRESS;
+	userKey = (unsigned char*)USER_KEY_ADDRESS;
+
+	if (vConfiguration->callsign[0] == 0xff) {
+		loadDefaultValues();
+	}
+}
+
+void myStrcpy(char *dst, const char *src)
+{
+	int len;
+	int n;
+
+
+	len = strlen(src) + 1;
+	myMemcpy(dst, src, len);
+}
+
+void myMemcpy(void *dst, const void *src, unsigned int len)
+{
+	int len2;
+	int n;
+
+	unsigned int x = 0xffffffffu;
+	char *cp = (char*)&x;
+
+	len2 = len % 4;
+	for (n = 0; n < len; n++) {
+		if ((n != 0) && (n % 4 == 0)) {
+			*((unsigned int*)dst) = x;
+			dst += 4;
+			x = 0xffffffffu;
+		}
+		cp[n % 4] = ((char*)src)[n];
+	}
+
+	if (len2) {
+		*((unsigned int*)dst) = x;
+	}
+}

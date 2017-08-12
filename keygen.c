@@ -127,10 +127,25 @@ int main()
 
 	keyfd = creat("anubis_key.bin", 0600);
 	if (keyfd < 0) {
-			perror("Can't create key file");
-			exit(1);
+		perror("Can't create key file");
+		exit(1);
 	}
 	write(keyfd, anubisKey, 40);
+	close(keyfd);
+
+	cp = buffer;
+	keyfd = creat("anubis_key.hex", 0600);
+	if (keyfd < 0) {
+		perror("Can't create key file");
+		exit(1);
+	}
+
+	for (n = 0; n < 40; n++) {
+		cp += sprintf(cp, "%02x", anubisKey[n]);
+	}
+	sprintf(cp, "\n");
+
+	write(keyfd, buffer, strlen(buffer));
 	close(keyfd);
 	close(rndfd);
 
