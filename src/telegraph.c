@@ -84,9 +84,8 @@
 
 static volatile int key;
 static char text[1518];
-static struct ipx_header replyHost;
+static unsigned int replyConnection;
 static int doReply;
-static unsigned int seqnum;
 static void sendBufferEmpty(int data);
 
 void dot()
@@ -154,7 +153,7 @@ void dot()
 	}
 
 	if (bufferEmpty && doReply) {
-		coroutine_invoke_later(sendBufferEmpty, (int)&replyHost, "reply");
+		coroutine_invoke_later(sendBufferEmpty, (int)replyConnection, "reply");
 	}
 }
 
@@ -162,16 +161,52 @@ int telegraphHandleCommand(struct ipx_header*ipxHeader, struct alchemyHeader*alc
 {
 	int i1;
 	int i2;
-	unsigned int oldSeqnum = seqnum;
 	unsigned char buf[48];
-	if (alcHeader->flags & ALC_FLAG_ACK) {
-		/* #ToDo: Handle ACK */
-		return 1;
+
+	if (cmdHeader.major == 3) {
+		switch(cmdHeader.minor) {
+		case 1:
+			/* Configure call */
+			if (remaining < 33 || remaining > 40) {
+				alcHeader->flags |= ALC_FLAG_REJ;
+				replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
+				return 1;
+			}
+			encReadBuffer(32, buf);
+			if (alchemyAuthenticate(ALC_KEY_DEVICE, buf, ipxHeader)) {
+				alcHeader->flags |= ALC_FLAG_REJ;
+				replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
+				return 1;
+			}
+			encReadBuffer(remaining - 32, buf);
+			buf[remaining - 32] = 0;
+			memory_prepareWrite(vConfiguration);
+			myStrcpy(vConfiguration->callsign, (char*)buf);
+			memory_eraseAndWrite(vConfiguration);
+			break;
+		case 2:
+			/* Configure device name */
+			if (remaining < 33 || remaining >= 80) {
+				alcHeader->flags |= ALC_FLAG_REJ;
+				replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
+				return 1;
+			}
+			encReadBuffer(32, buf);
+			if (alchemyAuthenticate(ALC_KEY_DEVICE, buf, ipxHeader)) {
+				alcHeader->flags |= ALC_FLAG_REJ;
+				replyPacketSimple(ipxHeader, alcHeader, &cmdHeader);
+				return 1;
+			}
+			encReadBuffer(remaining - 32, buf);
+			buf[remaining - 32] = 0;
+			memory_prepareWrite(vConfiguration);
+			myStrcpy(vConfiguration->name, (char*)buf);
+			memory_eraseAndWrite(vConfiguration);
+			break;
+
+		}
 	}
-
-	seqnum = alcHeader->seqnum;
-
-	if (cmdHeader.major == 2) {
+	else if ((cmdHeader.major == 2) && (~alcHeader->flags & ALC_FLAG_CONLESS)) {
 		switch(cmdHeader.minor) {
 		case 0:
 			/* Configure mode */
@@ -265,7 +300,7 @@ int telegraphHandleCommand(struct ipx_header*ipxHeader, struct alchemyHeader*alc
 	} else if (cmdHeader.major == 1) {
 		switch(cmdHeader.minor) {
 		case 0:
-			memcpy(&replyHost, ipxHeader, sizeof(struct ipx_header));
+			replyConnection = getCurrentConnection();
 			encReadBuffer(remaining, (uint8_t*)text);
 			text[remaining] = 0;
 			encoderSetText(text);
@@ -296,17 +331,22 @@ int telegraphHandleCommand(struct ipx_header*ipxHeader, struct alchemyHeader*alc
 
 static void sendBufferEmpty(int data)
 {
-	const struct ipx_header *ipxHeader = (const struct ipx_header*)data;
+	struct ipx_header ipxHeader;
 	struct alchemyHeader alcHeader;
 	struct commandHeader cmdHeader;
+
+	if (!setCurrentConnection(data))
+		return;
+
+	getReplyHeader(&ipxHeader);
 
 	cmdHeader.major = CMD_TELEGRAPHY;
 	cmdHeader.minor = CMD_TELEGRAPHY_BUFFERE;
 
 	alcHeader.flags = ALC_FLAG_COMMAND;
 
-	alcHeader.seqnum = 0;
-	replyPacketSimple(ipxHeader, &alcHeader, &cmdHeader);
+	alcHeader.seqnum = getNextSequenceNumber();
+	replyPacketSimple(&ipxHeader, &alcHeader, &cmdHeader);
 
 }
 

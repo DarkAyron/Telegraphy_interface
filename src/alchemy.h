@@ -73,11 +73,23 @@ struct cmdQueue {
 	uint8_t major;
 	uint8_t minor;
 	uint32_t seqnum;
+	uint32_t connum;
 	char*data;
 	uint16_t size;
 	uint8_t status;
 };
 #pragma pack(pop)
+
+struct connection {
+	IPXNet network;
+	IPXNode node;
+	IPXPort srcport;
+	IPXPort dstPort;
+	uint32_t connum;
+	uint32_t lastSeqnum;
+	uint32_t timeout;
+	uint32_t authenticated;
+};
 
 #define ALC_FLAG_CON 1
 #define ALC_FLAG_REJ 2
@@ -86,7 +98,7 @@ struct cmdQueue {
 #define ALC_FLAG_CONLESS 16
 #define ALC_FLAG_COMMAND 32
 
-extern struct cmdQueue cmdQeue[10];
+/* extern struct cmdQueue cmdQeue[10]; */
 
 void alchemyInit();
 void alchemyTick();
@@ -94,11 +106,17 @@ void handleAlchemyPacket(struct ipx_header*header);
 int replyPacketSimple(const struct ipx_header*ipxHeader, const struct alchemyHeader*alcHeader, const struct commandHeader*cmdHeader);
 int replyPacketEx(const struct ipx_header*ipxHeader, const struct alchemyHeader*alcHeader, const struct commandHeader*cmdHeader, const uint8_t*data, uint32_t dsize);
 int alchemyAuthenticate(int key, const unsigned char*token, const struct ipx_header*ipxHeader);
+int isAuthenticated();
+uint32_t getCurrentConnection();
+int setCurrentConnection(uint32_t connection);
+void getReplyHeader(struct ipx_header *ipxHeader);
+uint32_t getNextSequenceNumber();
 
 #define CMD_SYSTEM		0
 #define CMD_SYSTEM_INTERROGATE	0
 #define CMD_SYSTEM_NONCE	1
-#define CMD_SET_USER_KEY	2
+#define CMD_SYSTEM_AUTHENTICATE	2
+#define CMD_SET_USER_KEY	3
 
 #define ALC_KEY_DEVICE		0
 #define ALC_KEY_USER		1

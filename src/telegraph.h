@@ -76,7 +76,7 @@
 #define SRC_TELEGRAPH_H_
 
 #define MORSE_CODE_CONTINENTAL	1
-#define MORSE_CODE_RAILROAD		2
+#define MORSE_CODE_RAILROAD	2
 
 #include "ipx.h"
 #include "alchemy.h"
